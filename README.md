@@ -30,7 +30,7 @@ LogVar 弹幕 API 服务器
 ## 功能
 - **API 接口**：
   - `GET /api/v2/search/anime?keyword=${queryTitle}`：根据关键字搜索动漫。
-  - `POST /api/v2/match`：根据关键字匹配动漫，用于自动匹配。（已支持在match接口中通过@语法动态指定平台优先级，如`赴山海 S01E28 @qiyi`；已支持从网盘资源命名，如`无忧渡.S01E01.2160p.WEB-DL.H265.DDP.5.1`中提取 title/season/episode）
+  - `POST /api/v2/match`：根据关键字匹配动漫，用于自动匹配。（已支持在match接口中通过@语法动态指定平台优先级，如`赴山海 S01E28 @qiyi`；已支持从网盘资源命名，如`无忧渡.S01E01.2160p.WEB-DL.H265.DDP.5.1`中提取 title/season/episode）；已支持外语标题匹配，如`Blood.River.S01E05`，需配置环境变量`TITLE_TO_CHINESE`使用；已适配该格式`爱情公寓.ipartment.2009.S03E05.H.265.25fps.mkv`标题
   - `GET /api/v2/search/episodes`：根据关键词搜索所有匹配的剧集信息。
   - `GET /api/v2/bangumi/:animeId`：获取指定动漫的详细信息。
   - `GET /api/v2/comment/:commentId?format=json`：获取指定弹幕评论，支持返回相关评论和字符转换。
@@ -48,6 +48,7 @@ LogVar 弹幕 API 服务器
   - 弹幕缓存（可通过 `COMMENT_CACHE_MINUTES` 配置，默认5分钟）
   - 用户偏好记录（可通过 `MAX_LAST_SELECT_MAP` 配置，默认100条）
   - Redis 分布式缓存支持（可选）
+  - 本地和Docker部署支持实时保存缓存到文件（挂载.cache目录即可）
 - **部署支持**：支持本地运行、Docker 容器化、Vercel 一键部署、Netlify 一键部署、Edgeone 一键部署、Cloudflare 一键部署、Claw部署和 Docker 一键启动。
 - **手动选择记忆**：支持记住之前搜索title时手动选择的anime，并在后续的match自动匹配时优选该anime【实验性】。
 - **手动搜索支持输入播放链接获取弹幕**：支持手动搜索的播放器输入爱优腾芒哔播放链接可获取弹幕，如`senplayer`。
@@ -55,6 +56,7 @@ LogVar 弹幕 API 服务器
   - 将顶部和底部弹幕转换为浮动弹幕（`CONVERT_TOP_BOTTOM_TO_SCROLL`）
   - 将彩色弹幕转换为纯白弹幕（`CONVERT_COLOR_TO_WHITE`）
   - 解决部分播放器不支持顶部/底部弹幕和彩色弹幕的问题
+- **弹幕限制数量**：支持通过环境变量配置等间隔采样弹幕数量。
 
 ## 前置条件
 - Node.js（v18.0.0 或更高版本；理论兼容更低版本，请自行测试）
@@ -76,9 +78,9 @@ LogVar 弹幕 API 服务器
 3. **配置应用**（可选）：
 
    本项目支持三种配置方式，优先级从高到低：
-   1. **系统环境变量**（最高优先级）
-   2. **.env 文件**（中等优先级）- 复制 `.env.example` 为 `.env` 并修改
-   3. **config.yaml 文件**（最低优先级）- 复制 `config.yaml.example` 为 `config.yaml` 并修改
+   1. **.env 文件**（最高优先级）- 复制 `.env.example` 为 `.env` 并修改
+   2. **config.yaml 文件**（中等优先级）- 复制 `config.yaml.example` 为 `config.yaml` 并修改
+   3. **系统环境变量**（最低优先级）
 
    如果某个系统无法编辑 `.env` 文件，可以使用 `config.yaml` 文件替代。
 
@@ -108,6 +110,7 @@ LogVar 弹幕 API 服务器
    - `GET http://{ip}:9321/87654321/api/v2/comment/1?format=json`
    - `GET http://{ip}:9321/87654321/api/v2/comment?url=https://v.qq.com/x/cover/xxx.html&format=json`
    - `GET http://{ip}:9321/87654321/api/logs`
+   > 注意：TOKEN为默认87654321的情况下，可不带{TOKEN}请求，如`http://{ip}:9321/api/v2/search/anime?keyword=生万物`
 
 ## 使用 Docker 运行
 1. **构建 Docker 镜像**：
@@ -131,6 +134,7 @@ LogVar 弹幕 API 服务器
 
 3. **测试 API**：
    使用 `http://{ip}:9321/{TOKEN}` 访问上述 API 接口。
+   > 注意：TOKEN为默认87654321的情况下，可不带{TOKEN}请求，如`http://{ip}:9321/api/v2/search/anime?keyword=生万物`
 
 ## Docker 一键启动 【推荐】
 1. **拉取镜像**：
@@ -161,6 +165,7 @@ LogVar 弹幕 API 服务器
        volumes:
          - ./.env:/app/.env
          - ./config.yaml:/app/config.yaml
+         - ./.chche:/app/.cache    # 配置.chche目录，会将缓存实时保存在本地文件
        restart: unless-stopped
    ```
 
@@ -184,6 +189,7 @@ LogVar 弹幕 API 服务器
 
 3. **测试 API**：
    使用 `http://{ip}:9321/{TOKEN}` 访问上述 API 接口。
+   > 注意：TOKEN为默认87654321的情况下，可不带{TOKEN}请求，如`http://{ip}:9321/api/v2/search/anime?keyword=生万物`
 
 ## 部署到 Vercel 【推荐】
 
@@ -198,6 +204,7 @@ LogVar 弹幕 API 服务器
   2. 在“Environment Variables”部分添加 `TOKEN` 变量，输入你的 API 令牌值。
   3. 保存更改并重新部署。
 - 示例请求：`https://{your_domain}.vercel.app/87654321/api/v2/search/anime?keyword=子夜归`
+  > 注意：TOKEN为默认87654321的情况下，可不带{TOKEN}请求，如`https://{your_domain}.vercel.app/api/v2/search/anime?keyword=子夜归`
 
 ### 优化点
 - Settings > Functions > Advanced Setting > Function Region 切换为 新加坡/韩国/日本等，能提高访问速度，体验更优
@@ -212,6 +219,7 @@ LogVar 弹幕 API 服务器
 <a href="https://app.netlify.com/start/deploy?repository=https://github.com/huangxd-/danmu_api"><img src="https://www.netlify.com/img/deploy/button.svg"></a>
 
 > 默认访问domain：https://{你的部署项目名}.netlify.app
+> > 注意：TOKEN为默认87654321的情况下，可不带{TOKEN}请求，如`https://{你的部署项目名}.netlify.app/api/v2/search/anime?keyword=子夜归`
 
 - **设置环境变量**：部署后，在 Netlify 仪表板中：
   1. 点击Project configuration。
@@ -226,6 +234,7 @@ LogVar 弹幕 API 服务器
 > 注意：部署时请在环境变量配置区域填写你的TOKEN值，该变量将用于API服务的身份验证相关功能
 > 
 > 示例请求：`https://{your_domain}/{TOKEN}/api/v2/search/anime?keyword=子夜归`确认是否部署成功
+> > 注意：TOKEN为默认87654321的情况下，可不带{TOKEN}请求，如`https://{your_domain}.vercel.app/api/v2/search/anime?keyword=子夜归`
 >
 > 部署的时候项目加速区域最好设置为"全球可用区（不含中国大陆）"，不然不绑定自定义域名貌似只能生成3小时的预览链接？[相关文档](https://edgeone.cloud.tencent.com/pages/document/175191784523485184)
 > 
@@ -251,6 +260,7 @@ LogVar 弹幕 API 服务器
   3. 添加 `TOKEN` 环境变量，输入你的 API 令牌值。
   4. 保存并部署。
 - 示例请求：`https://{your_domain}.workers.dev/87654321/api/v2/search/anime?keyword=子夜归`
+  > 注意：TOKEN为默认87654321的情况下，可不带{TOKEN}请求，如`https://{your_domain}.workers.dev/api/v2/search/anime?keyword=子夜归`
 
 ### ~~手动部署~~
 ~~创建一个worker，将`danmu_api/worker.js`里的代码直接拷贝到你创建的`worker.js`里，然后点击部署。~~
@@ -258,10 +268,10 @@ LogVar 弹幕 API 服务器
 > cf部署可能不稳定，推荐用vercel/netlify部署。
 
 ## API食用指南
-支持 forward/senplayer/hills/小幻/yamby/eplayerx/afusekt 等支持弹幕API的播放器。
+支持 forward/senplayer/hills/小幻/yamby/eplayerx/afusekt/uz影视/dscloud/lenna 等支持弹幕API的播放器。
 
 以`senplayer`为例：
-1. 获取到部署之后的API地址，如 `http://192.168.1.7:9321/87654321` ，其中`87654321`是默认token，如果有自定义环境变量TOKEN，请替换成相应的token
+1. 获取到部署之后的API地址，如 `http://192.168.1.7:9321/87654321` ，其中`87654321`是默认token（默认为87654321的情况下也可以不带token），如果有自定义环境变量TOKEN，请替换成相应的token
 2. 将API地址填入自定义弹幕API，在`设置 - 弹幕设置 - 自定义弹幕API`
 3. 播放界面点击`弹幕按钮 - 搜索弹幕`，选择你的弹幕API，会根据标题进行搜索，等待一段时间，选择剧集就行。
 <img src="https://i.mji.rip/2025/09/14/1dae193008f23e507d3cc3733a92f0a1.jpeg" style="width:400px" />
@@ -315,7 +325,7 @@ API 支持返回 Bilibili 标准 XML 格式的弹幕数据，通过查询参数 
 | 变量名称      | 描述 |
 | ----------- | ----------- |
 | TOKEN      | 【可选】自定义用户token，不填默认为`87654321`       |
-| OTHER_SERVER   | 【可选】兜底第三方弹幕服务器，不填默认为`https://api.danmu.icu`       |
+| OTHER_SERVER   | 【可选】兜底第三方弹幕服务器，不填默认为`https://api.danmu.icu`，其他可选：`https://fc.lyz05.cn`，`https://dmku.hls.one`，`https://se.678.ooo`，`https://danmu.56uxi.com`，`https://dm.lxlad.com`       |
 | VOD_SERVERS      | 【可选】VOD服务器列表，支持多个服务器并发查询，格式：`名称@URL,名称@URL,...`，示例：`金蝉@https://zy.jinchancaiji.com,789@https://www.caiji.cyou,听风@https://gctf.tfdh.top`，不填默认为`金蝉@https://zy.jinchancaiji.com,789@https://www.caiji.cyou,听风@https://gctf.tfdh.top`       |
 | VOD_RETURN_MODE      | 【可选】VOD返回模式，可选值：`all`（返回所有站点结果）、`fastest`（只返回最快的站点结果），默认为`fastest`。当配置多个VOD站点时，`all`模式会返回所有站点的结果（结果较多），`fastest`模式只返回首先响应成功的站点结果（结果较少，避免重复）       |
 | VOD_REQUEST_TIMEOUT      | 【可选】VOD服务器单个请求超时时间（毫秒），防止慢速或失效的采集站阻塞搜索，默认为`10000`（10秒），建议值：`5000-15000`。由于`fastest`模式只返回最快响应的站点，可以设置较大的超时时间给慢速站点更多机会       |
@@ -326,8 +336,10 @@ API 支持返回 Bilibili 标准 XML 格式的弹幕数据，通过查询参数 
 | EPISODE_TITLE_FILTER    | 【可选】剧集标题正则过滤，按正则关键字对剧集或综艺的集标题进行过滤，适用于过滤一些预告或综艺非正式集，只支持match自动匹配，默认值如下 |
 | ENABLE_EPISODE_FILTER    | 【可选】是否在手动选择接口中启用集标题过滤，默认为`false`（禁用），启用后 GET /api/v2/bangumi/{id} 和 GET /api/v2/search/anime 接口会过滤掉预告、花絮等特殊集，以及名称包含特殊关键词的动漫。       |
 | STRICT_TITLE_MATCH    | 【可选】是否启用严格标题匹配模式，默认为`false`（宽松模糊匹配），启用后只匹配标题开头或完全匹配的结果。例如：搜索"遮天"时，`false`会匹配"古惑仔3之只手遮天"，`true`只匹配"遮天"、"遮天 第一季"等。可选值：`true`、`false`       |
+| TITLE_TO_CHINESE    | 【可选】是否在match自动匹配时将外语标题转换成中文标题，适用于网盘没有刮削的资源，默认值：false（不转换），说明：需配合TMDB_API_KEY使用       |
 | BLOCKED_WORDS    | 【可选】弹幕屏蔽词列表，默认为空，示例如下       |
 | GROUP_MINUTE    | 【可选】合并去重分钟数，表示按n分钟分组后对弹幕合并去重，默认为1，最大值为30，0表示不去重       |
+| DANMU_LIMIT    | 【可选】等间隔采样限制弹幕总数，单位为k，即千：默认 0，表示不限制弹幕数，若改为5，弹幕总数在超过5000的情况下会将弹幕数控制在5000       |
 | CONVERT_TOP_BOTTOM_TO_SCROLL    | 【可选】是否将顶部和底部弹幕转换为浮动弹幕，默认为`false`（不转换），启用后顶部弹幕（ct=5）和底部弹幕（ct=4）会被转换为浮动弹幕（ct=1），可选值：`true`、`false`       |
 | CONVERT_COLOR_TO_WHITE    | 【可选】是否将彩色弹幕转换为纯白弹幕，默认为`false`（不转换），启用后所有非白色的弹幕颜色会被转换为纯白色（16777215），可选值：`true`、`false`       |
 | DANMU_OUTPUT_FORMAT    | 【可选】弹幕输出格式，默认为`json`，可选值：`json`（JSON格式）、`xml`（XML格式），支持通过查询参数`?format=xml`或`?format=json`覆盖此设置，优先级：查询参数 > 环境变量 > 默认值       |
@@ -479,6 +491,9 @@ danmu_api/
 - 推荐vercel/netlify部署，cloudflare/edgeone/claw不稳定，当然最稳定还是自己本地docker部署最佳。
 - /api/v2/comment接口默认限流：1分钟内同一IP只能请求3次，可通过环境变量`RATE_LIMIT_MAX_REQUESTS`调整（设置为0表示不限流）。
 - TMDB源请求逻辑：search tmdb -> tmdbId -> imdbId -> doubanId -> playUrl；优点：emby通过tmdb刮削，标题通过tmdb搜索，返回的信息可能更加匹配；缺点：链条过长，请求时长5-10s左右，中间一环数据有缺失，就没有返回结果。
+- TMDB源在SOURCE_ORDER添加tmdb的同时，需要添加TMDB_API_KEY环境变量
+- 弹幕分片下载请求已加入重试机制，重试次数为1次
+- 如果同时配置了本地缓存和redis缓存，则以redis缓存优先
 
 ### 关联项目
 [喂饭教程1：danmu_api vercel 自动同步部署方案 - 永远保持最新版本！实时同步原作者更新](https://github.com/xiaoyao20084321/log-var-danmu-deployment-guide)
@@ -487,8 +502,10 @@ danmu_api/
 
 [喂饭教程3：使用Netlify反向代理巴哈姆特api，实现danmu_api项目国内直连获取巴哈姆特弹幕](https://github.com/wan0ge/bahamut-api-proxy)
 
+[喂饭教程4：使用Vercel搭建万能反向代理，部署后请绑定自定义域名使用](https://github.com/souying/vercel-api-proxy)
+
 ### 部署完成后在播放器填写后弹幕未生效自主排查步骤
-以API示例 `http://192.168.1.7:9321/87654321` 为例
+以API示例 `http://192.168.1.7:9321/87654321` 为例（默认为87654321的情况下也可以不带token）
 1. 首先确认你的api部署成功 访问 `http://192.168.1.7:9321/87654321` 有json输出
 2. 检查你在播放器的填写是否正确，有无多余空格等
 3. 播放器请求后，查看 `http://192.168.1.7:9321/87654321/api/logs` 日志，看请求是否有报错，比如有用户在自己软路由上搭建，但走了全局代理，导致人人等访问不了，请确保走直连

@@ -447,6 +447,7 @@ export default class MangoSource extends BaseSource {
               episodeCount: 1,
               rating: 0,
               isFavorited: true,
+              source: "imgo",
             };
 
             tmpAnimes.push(transformedAnime);
@@ -485,6 +486,7 @@ export default class MangoSource extends BaseSource {
               episodeCount: links.length,
               rating: 0,
               isFavorited: true,
+              source: "imgo",
             };
 
             tmpAnimes.push(transformedAnime);
@@ -577,6 +579,7 @@ export default class MangoSource extends BaseSource {
                 "Content-Type": "application/json",
                 "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
               },
+              retries: 1,
             })
           );
         }
@@ -600,6 +603,7 @@ export default class MangoSource extends BaseSource {
                 "Content-Type": "application/json",
                 "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
               },
+              retries: 1,
             })
           );
         }
