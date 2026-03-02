@@ -112,18 +112,22 @@ export function groupDanmusByMinute(filteredDanmus, n) {
  * @returns {Array} 处理后的弹幕列表
  */
 export function handleDanmusLike(groupedDanmus) {
+  if (!globals.likeSwitch) {
+    return groupedDanmus;
+  }
   return groupedDanmus.map(item => {
     // 如果item没有like字段或者like值小于5，则不处理
     if (!item.like || item.like < 5) {
       return item;
     }
 
-    // 获取弹幕来源信息，判断是否为hanjutv
-    const isHanjutv = item.p.includes('[hanjutv]');
+    // 获取弹幕来源信息，判断是否为需要特殊处理的源（低阈值）
+    const lowThresholdSources = ['[hanjutv]', '[sohu]', '[bilibili1]', '[migu]'];
+    const isLowThresholdSource = lowThresholdSources.some(source => item.p.includes(source));
 
-    // 确定阈值：hanjutv中>=100用🔥，其他>=1000用🔥
-    const threshold = isHanjutv ? 100 : 1000;
-    const icon = item.like >= threshold ? '🔥' : '❤️';
+    // 确定阈值：特定源中>=100用🔥，其他>=1000用🔥
+    const threshold = isLowThresholdSource ? 100 : 1000;
+    const icon = item.like >= threshold ? '🔥' : '️♡';
 
     // 格式化点赞数，缩写显示
     let formattedLike;
@@ -139,7 +143,7 @@ export function handleDanmusLike(groupedDanmus) {
     }
 
     // 在弹幕内容m字段后面添加点赞信息
-    const likeText = ` ${icon} ${formattedLike}`;
+    const likeText = `${icon}${formattedLike}`;
     const newM = item.m + likeText;
 
     // 创建新对象，复制原属性，更新m字段，并删除like字段
